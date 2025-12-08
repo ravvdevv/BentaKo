@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import { FiHome, FiPackage, FiPieChart, FiCreditCard, FiShoppingCart, FiSearch, FiMenu, FiMonitor, FiSmartphone } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { useProductModal } from '../hooks/useProductModal';
 import { useCheckout } from '../hooks/useCheckout';
 import { useMobileDetect } from '../hooks/useMobileDetect';
 import { ProductModal } from '../components/dashboard/ProductModal';
+import { formatPrice } from '../utils/formatPrice';
 
 // Styled Components for Mobile
 const MobileContainer = styled.div`
@@ -469,19 +470,6 @@ const EmptyCart = styled.div`
   }
 `;
 
-// Helper function
-const formatPrice = (price: unknown): string => {
-  try {
-    if (price === null || price === undefined || price === '') return '0.00';
-    const num = Number(price);
-    if (isNaN(num)) return '0.00';
-    return num.toFixed(2);
-  } catch (error) {
-    console.error('Error formatting price:', { price, error });
-    return '0.00';
-  }
-};
-
 export default function Mobile() {
   const [activeTab, setActiveTab] = useState('home');
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -495,6 +483,9 @@ export default function Mobile() {
   const { searchQuery, setSearchQuery, searchInputRef, filteredProducts } = useProductSearch(allProducts);
   const { productModal, openProductModal, closeProductModal, handleQuantityChange } = useProductModal();
   const { handleCheckout: processCheckout } = useCheckout();
+  
+  // Memoize cart item IDs for efficient lookups
+  const cartItemIds = useMemo(() => new Set(cart.map(item => item.id)), [cart]);
   
   const getDeviceType = () => {
     if (isMobile) return 'Mobile';
@@ -597,7 +588,7 @@ export default function Mobile() {
               <ProductGrid>
                 {filteredProducts.map((product) => {
                   const isLowStock = product.stock <= (product.minStockLevel || 5);
-                  const isInCart = cart.some((item) => item.id === product.id);
+                  const isInCart = cartItemIds.has(product.id);
 
                   return (
                     <ProductCard
