@@ -33,7 +33,10 @@ loadFromStorage();
 
 // CRUD Operations
 export const getInventoryItems = async (): Promise<InventoryItem[]> => {
-  loadFromStorage(); // Ensure data is loaded
+  // Only load from storage if not already initialized
+  if (!isInitialized) {
+    loadFromStorage();
+  }
   await delay(300); // Simulate network delay
   return [...inventoryDB];
 };
