@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import type { CartItem } from '../types/cart';
 import type { InventoryItem } from '../types/inventory';
@@ -56,12 +56,16 @@ export const useCart = () => {
     setCart([]);
   };
 
-  const totalPrice = cart.reduce(
-    (sum, item) => sum + (item.price * item.quantity),
-    0
+  // Memoize expensive calculations
+  const totalPrice = useMemo(
+    () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+    [cart]
   );
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
 
   return {
     cart,

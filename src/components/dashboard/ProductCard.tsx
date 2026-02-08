@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import type { InventoryItem } from '../../types/inventory';
+import { formatPrice } from '../../utils/formatPrice';
 
 // Types
 interface ProductCardProps {
@@ -57,20 +58,7 @@ const LowStockWarning = styled.div`
     font-weight: 600;
 `;
 
-// Helper to format price
-const formatPrice = (price: unknown): string => {
-    try {
-        if (price === null || price === undefined || price === '') return '0.00';
-        const num = Number(price);
-        if (isNaN(num)) return '0.00';
-        return num.toFixed(2);
-    } catch (error) {
-        console.error('Error formatting price:', { price, error });
-        return '0.00';
-    }
-};
-
-const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isInCart }) => {
+const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, onClick, isInCart }) => {
   const isLowStock = product.stock <= (product.minStockLevel || 5);
 
   return (
@@ -92,6 +80,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isInCart })
       </ProductStock>
     </CardWrapper>
   );
-};
+});
+
+ProductCard.displayName = 'ProductCard';
 
 export default ProductCard;

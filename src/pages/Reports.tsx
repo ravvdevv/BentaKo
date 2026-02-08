@@ -1,4 +1,4 @@
-import React from "react";
+import { useMemo } from "react";
 import { useInventoryList, useLowStockItems } from "../hooks/useInventory";
 import { useDebtList } from "../hooks/useDebt";
 import { useSalesList } from "../hooks/useSales";
@@ -80,92 +80,150 @@ export default function Reports() {
     error: salesError
   } = useSalesList();
   
-  // Date helper functions
-  const isToday = (date: Date) => {
+  // Memoize date helper functions and reference dates
+  const dateHelpers = useMemo(() => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
-  const isThisWeek = (date: Date) => {
-    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
     const firstDayOfWeek = new Date(today);
     firstDayOfWeek.setDate(today.getDate() - today.getDay());
     firstDayOfWeek.setHours(0, 0, 0, 0);
-    return date >= firstDayOfWeek;
-  };
+    
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
-  const isThisMonth = (date: Date) => {
-    const today = new Date();
-    return date.getMonth() === today.getMonth() && 
-           date.getFullYear() === today.getFullYear();
-  };
+    return {
+      today,
+      yesterday,
+      firstDayOfWeek,
+      weekAgo,
+      twoWeeksAgo,
+      isToday: (date: Date) => date.toDateString() === today.toDateString(),
+      isThisWeek: (date: Date) => date >= firstDayOfWeek,
+      isThisMonth: (date: Date) => 
+        date.getMonth() === today.getMonth() && 
+        date.getFullYear() === today.getFullYear(),
+    };
+  }, []); // Only recalculate when component mounts
 
-  const calculateSalesTotal = (filterFn: (date: Date) => boolean) => {
-    return sales
-      ?.filter(sale => filterFn(new Date(sale.date)))
-      .reduce((acc, sale) => acc + (sale.price * sale.quantity), 0) ?? 0;
-  };
+  // Memoize all sales calculations in one pass to avoid multiple iterations
+  const salesMetrics = useMemo(() => {
+    if (!sales || sales.length === 0) {
+      return {
+        todaysSales: 0,
+        yesterdaySales: 0,
+        weeklySales: 0,
+        lastWeekSales: 0,
+        monthlySales: 0,
+        totalRevenue: 0,
+        itemsSoldCount: 0,
+      };
+    }
 
-  const outOfStockCount = React.useMemo(() => {
+    let todaysSales = 0;
+    let yesterdaySales = 0;
+    let weeklySales = 0;
+    let lastWeekSales = 0;
+    let monthlySales = 0;
+    let totalRevenue = 0;
+    let itemsSoldCount = 0;
+
+    // Single pass through sales data
+    sales.forEach(sale => {
+      const saleDate = new Date(sale.date);
+      const revenue = sale.price * sale.quantity;
+      
+      totalRevenue += revenue;
+      itemsSoldCount += sale.quantity;
+
+      if (dateHelpers.isToday(saleDate)) {
+        todaysSales += revenue;
+      }
+      
+      if (saleDate.toDateString() === dateHelpers.yesterday.toDateString()) {
+        yesterdaySales += revenue;
+      }
+      
+      if (dateHelpers.isThisWeek(saleDate)) {
+        weeklySales += revenue;
+      }
+      
+      if (saleDate >= dateHelpers.twoWeeksAgo && saleDate < dateHelpers.weekAgo) {
+        lastWeekSales += revenue;
+      }
+      
+      if (dateHelpers.isThisMonth(saleDate)) {
+        monthlySales += revenue;
+      }
+    });
+
+    return {
+      todaysSales,
+      yesterdaySales,
+      weeklySales,
+      lastWeekSales,
+      monthlySales,
+      totalRevenue,
+      itemsSoldCount,
+    };
+  }, [sales, dateHelpers]);
+
+  const outOfStockCount = useMemo(() => {
     if (!inventoryItems) return 0;
     return inventoryItems.filter(item => item.stock <= 0).length;
   }, [inventoryItems]);
 
-  const activeDebts = debts?.filter((debt) => debt.status !== "Paid");
-  const paidDebts = debts?.filter((debt) => debt.status === "Paid");
-  const totalAmountDue = activeDebts?.reduce((acc, debt) => acc + debt.amount, 0) ?? 0;
-  const totalRevenue = sales?.reduce((acc, item) => acc + (item.price * item.quantity), 0) ?? 0;
-  const itemsSoldCount = sales?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
-  
-  // Enhanced metrics calculation
-  const todaysSales = calculateSalesTotal(isToday);
-  const weeklySales = calculateSalesTotal(isThisWeek);
-  const monthlySales = calculateSalesTotal(isThisMonth);
-  
-  // Calculate previous period for trends
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const lastWeek = new Date();
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const lastMonth = new Date();
-  lastMonth.setMonth(lastMonth.getMonth() - 1);
-  
-  const yesterdaySales = sales
-    ?.filter(sale => new Date(sale.date).toDateString() === yesterday.toDateString())
-    .reduce((acc, sale) => acc + (sale.price * sale.quantity), 0) ?? 0;
+  // Memoize debt calculations
+  const debtMetrics = useMemo(() => {
+    if (!debts || debts.length === 0) {
+      return {
+        activeDebts: [],
+        paidDebts: [],
+        totalAmountDue: 0,
+        avgDaysToPay: 0,
+      };
+    }
+
+    const activeDebts = debts.filter((debt) => debt.status !== "Paid");
+    const paidDebts = debts.filter((debt) => debt.status === "Paid");
+    const totalAmountDue = activeDebts.reduce((acc, debt) => acc + debt.amount, 0);
     
-  const lastWeekSales = sales
-    ?.filter(sale => {
-      const saleDate = new Date(sale.date);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 14); // Two weeks ago
-      return saleDate >= weekAgo && saleDate < lastWeek;
-    })
-    .reduce((acc, sale) => acc + (sale.price * sale.quantity), 0) ?? 0;
-    
+    const paidDebtsWithDate = paidDebts.filter(d => d.paidDate);
+    const avgDaysToPay = paidDebtsWithDate.length > 0
+      ? Math.round(paidDebtsWithDate.reduce((acc, debt) => {
+          const created = new Date(debt.createdAt);
+          const paid = new Date(debt.paidDate!);
+          const diffTime = Math.abs(paid.getTime() - created.getTime());
+          return acc + Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }, 0) / paidDebtsWithDate.length)
+      : 0;
+
+    return {
+      activeDebts,
+      paidDebts,
+      totalAmountDue,
+      avgDaysToPay,
+    };
+  }, [debts]);
+  
   // Calculate trends
-  const dailyTrend = calculateTrend(todaysSales, yesterdaySales);
-  const weeklyTrend = calculateTrend(weeklySales, lastWeekSales);
+  const dailyTrend = calculateTrend(salesMetrics.todaysSales, salesMetrics.yesterdaySales);
+  const weeklyTrend = calculateTrend(salesMetrics.weeklySales, salesMetrics.lastWeekSales);
   
   // Calculate average order value
   const totalOrders = sales?.length || 1; // Avoid division by zero
-  const avgOrderValue = totalRevenue / totalOrders;
+  const avgOrderValue = salesMetrics.totalRevenue / totalOrders;
   
-  // Inventory metrics
-  const inventoryValue = inventoryItems?.reduce((acc, item) => acc + (item.price * item.stock), 0) ?? 0;
-  
-  // Debt metrics
-  const paidDebtsWithDate = paidDebts?.filter(d => d.paidDate) || [];
-  const avgDaysToPay = paidDebtsWithDate.length > 0
-    ? Math.round(paidDebtsWithDate.reduce((acc, debt) => {
-        const created = new Date(debt.createdAt);
-        const paid = new Date(debt.paidDate!);
-        const diffTime = Math.abs(paid.getTime() - created.getTime());
-        return acc + Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      }, 0) / paidDebtsWithDate.length)
-    : 0;
+  // Inventory value calculation
+  const inventoryValue = useMemo(() => 
+    inventoryItems?.reduce((acc, item) => acc + (item.price * item.stock), 0) ?? 0,
+  [inventoryItems]);
 
-  const reportsData: ReportData[] = [
+  const reportsData: ReportData[] = useMemo(() => [
     {
       category: "Inventory Overview",
       icon: "📦",
@@ -213,11 +271,11 @@ export default function Reports() {
       category: "Sales Performance",
       icon: "💰",
       color: "#27ae60",
-      insight: getSalesInsight(totalRevenue, itemsSoldCount, avgOrderValue, dailyTrend),
+      insight: getSalesInsight(salesMetrics.totalRevenue, salesMetrics.itemsSoldCount, avgOrderValue, dailyTrend),
       summary: [
         {
           label: "Today's Sales",
-          value: todaysSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          value: salesMetrics.todaysSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           isLoading: isLoadingSales,
           error: salesError ? "Error loading sales data" : undefined,
           icon: "🛒",
@@ -227,7 +285,7 @@ export default function Reports() {
         },
         {
           label: "This Week's Sales",
-          value: weeklySales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          value: salesMetrics.weeklySales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           isLoading: isLoadingSales,
           error: salesError ? "Error loading sales data" : undefined,
           icon: "📆",
@@ -237,7 +295,7 @@ export default function Reports() {
         },
         {
           label: "This Month's Sales",
-          value: monthlySales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          value: salesMetrics.monthlySales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           isLoading: isLoadingSales,
           error: salesError ? "Error loading sales data" : undefined,
           icon: "📅",
@@ -253,7 +311,7 @@ export default function Reports() {
         },
         {
           label: "Total Items Sold",
-          value: itemsSoldCount.toLocaleString(),
+          value: salesMetrics.itemsSoldCount.toLocaleString(),
           isLoading: isLoadingSales,
           error: salesError ? "Error loading sales data" : undefined,
           icon: "📦"
@@ -264,42 +322,42 @@ export default function Reports() {
       category: "Debt Tracking",
       icon: "📝",
       color: "#e67e22",
-      insight: getDebtsInsight(activeDebts?.length ?? 0, totalAmountDue, avgDaysToPay),
+      insight: getDebtsInsight(debtMetrics.activeDebts.length, debtMetrics.totalAmountDue, debtMetrics.avgDaysToPay),
       summary: [
         {
           label: "Active Debts",
-          value: activeDebts?.length ?? 0,
+          value: debtMetrics.activeDebts.length,
           isLoading: isLoadingDebts,
           error: debtsError ? "Error loading debts" : undefined,
           icon: "⏳",
-          highlight: (activeDebts?.length ?? 0) > 0,
+          highlight: debtMetrics.activeDebts.length > 0,
         },
         {
           label: "Total Amount Due",
-          value: `₱${totalAmountDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          value: `₱${debtMetrics.totalAmountDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           isLoading: isLoadingDebts,
           error: debtsError ? "Error loading debts" : undefined,
           icon: "💳",
-          highlight: totalAmountDue > 0,
+          highlight: debtMetrics.totalAmountDue > 0,
         },
         {
           label: "Paid This Month",
-          value: `₱${(paidDebts?.reduce((acc, debt) => acc + debt.amount, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          value: `₱${(debtMetrics.paidDebts.reduce((acc, debt) => acc + debt.amount, 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           isLoading: isLoadingDebts,
           error: debtsError ? "Error loading debts" : undefined,
           icon: "✅",
         },
         {
           label: "Avg. Days to Pay",
-          value: avgDaysToPay > 0 ? `${avgDaysToPay} days` : 'N/A',
+          value: debtMetrics.avgDaysToPay > 0 ? `${debtMetrics.avgDaysToPay} days` : 'N/A',
           isLoading: isLoadingDebts,
           error: debtsError ? "Error loading debts" : undefined,
           icon: "⏱️"
         },
         {
           label: "Payment Success Rate",
-          value: debts && debts.length > 0 && paidDebts
-            ? `${Math.round((paidDebts.length / debts.length) * 100)}%` 
+          value: debts && debts.length > 0 && debtMetrics.paidDebts
+            ? `${Math.round((debtMetrics.paidDebts.length / debts.length) * 100)}%` 
             : 'N/A',
           isLoading: isLoadingDebts,
           error: debtsError ? "Error loading debts" : undefined,
@@ -307,7 +365,26 @@ export default function Reports() {
         }
       ],
     },
-  ];
+  ], [
+    inventoryItems,
+    lowStockItems,
+    outOfStockCount,
+    inventoryValue,
+    isLoadingInventory,
+    inventoryError,
+    isLoadingLowStock,
+    lowStockError,
+    salesMetrics,
+    avgOrderValue,
+    dailyTrend,
+    weeklyTrend,
+    isLoadingSales,
+    salesError,
+    debtMetrics,
+    isLoadingDebts,
+    debtsError,
+    debts,
+  ]);
 
   return (
     <PageContainer>

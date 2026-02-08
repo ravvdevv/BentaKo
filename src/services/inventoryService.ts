@@ -3,6 +3,7 @@ import type { InventoryItem, CreateInventoryItem, UpdateInventoryItem } from '..
 
 // Simple in-memory storage for prototyping
 let inventoryDB: InventoryItem[] = [];
+let isInitialized = false;
 
 // Helper function to save to localStorage
 const saveToStorage = () => {
@@ -11,26 +12,37 @@ const saveToStorage = () => {
   }
 };
 
-// Load from localStorage on service initialization
-if (typeof window !== 'undefined') {
-  const savedData = localStorage.getItem('inventoryDB');
-  if (savedData) {
-    try {
-      inventoryDB = JSON.parse(savedData);
-    } catch (error) {
-      console.error('Failed to parse inventory data from localStorage', error);
+// Helper function to load from localStorage (with caching)
+const loadFromStorage = () => {
+  if (typeof window !== 'undefined' && !isInitialized) {
+    const savedData = localStorage.getItem('inventoryDB');
+    if (savedData) {
+      try {
+        inventoryDB = JSON.parse(savedData);
+        isInitialized = true;
+      } catch (error) {
+        console.error('Failed to parse inventory data from localStorage', error);
+        inventoryDB = [];
+      }
     }
   }
-}
+};
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Load from localStorage on service initialization
+loadFromStorage();
 
 // CRUD Operations
 export const getInventoryItems = async (): Promise<InventoryItem[]> => {
+  // Only load from storage if not already initialized
+  if (!isInitialized) {
+    loadFromStorage();
+  }
   await delay(300); // Simulate network delay
   return [...inventoryDB];
 };
+
+// Simulate API delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const getInventoryItem = async (id: string): Promise<InventoryItem | undefined> => {
   await delay(200);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { InventoryItem } from '../types/inventory';
 
 export const useProductSearch = (allProducts: InventoryItem[]) => {
@@ -32,12 +32,16 @@ export const useProductSearch = (allProducts: InventoryItem[]) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Filter products based on search query
-  const filteredProducts = allProducts.filter(product => 
-    debouncedQuery === '' || 
-    product.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-    (product.description && product.description.toLowerCase().includes(debouncedQuery.toLowerCase()))
-  );
+  // Memoize filtered products to avoid recalculating on every render
+  const filteredProducts = useMemo(() => {
+    if (debouncedQuery === '') return allProducts;
+    
+    const lowerQuery = debouncedQuery.toLowerCase();
+    return allProducts.filter(product => 
+      product.name.toLowerCase().includes(lowerQuery) ||
+      (product.description && product.description.toLowerCase().includes(lowerQuery))
+    );
+  }, [allProducts, debouncedQuery]);
 
   return {
     searchQuery,
