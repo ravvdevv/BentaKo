@@ -23,14 +23,16 @@ export const getSales = (): Sale[] => {
   }
 };
 
-export const addSale = (cart: CartItem[]): void => {
+export const addSale = async (cart: CartItem[]): Promise<void> => {
   try {
     const existingSales = getSales();
     const saleDate = new Date().toISOString();
     const newSale: Sale[] = cart.map(item => ({ ...item, date: saleDate }));
     const updatedSales = [...existingSales, ...newSale];
     localStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(updatedSales));
+    return Promise.resolve();
   } catch (error) {
     console.error('Error saving sale to localStorage', error);
+    return Promise.reject(error);
   }
 };

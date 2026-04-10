@@ -1,5 +1,5 @@
 import { toast } from 'react-hot-toast';
-import { addSale } from '../services/salesService';
+import { useAddSale } from './useSales';
 import { useUpdateInventoryItem } from './useInventory';
 import { formatPrice } from '../utils/formatPrice';
 import type { CartItem } from '../types/cart';
@@ -7,6 +7,7 @@ import type { InventoryItem } from '../types/inventory';
 
 export const useCheckout = () => {
   const updateItemMutation = useUpdateInventoryItem();
+  const addSaleMutation = useAddSale();
 
   const handleCheckout = async (
     cart: CartItem[],
@@ -16,7 +17,7 @@ export const useCheckout = () => {
     if (cart.length === 0) return;
 
     try {
-      addSale(cart);
+      await addSaleMutation.mutateAsync(cart);
 
       // Process each item in the cart
       const updatePromises = cart.map(cartItem => {

@@ -1,10 +1,13 @@
-import { FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiDollarSign } from 'react-icons/fi';
+import { FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiDollarSign, FiArrowRight } from 'react-icons/fi';
 import {
-  CartSidebar, CartHeader, CartTitle, CloseButton, EmptyCartWrapper, CartItemsWrapper,
+  POSSidebar, CartHeader, CartTitle, CloseButton, EmptyCartWrapper, CartItemsWrapper,
   CartItem, CartItemImage, CartItemDetails, CartItemName, CartItemPrice, QuantityControl,
   QuantityButton, RemoveButton, CartFooter, TotalWrapper, CheckoutButton,
+  CashSection, CashLabel, CashInputWrapper, CashInput, CurrencyPrefix, QuickCashGrid, QuickCashButton,
+  ChangeDisplay, ChangeLabel, ChangeValue
 } from './styles';
 import { formatPrice } from '../../utils/formatPrice';
+import { usePretext } from '../../hooks/usePretext';
 import type { CartItem as CartItemType } from '../../types/cart';
 
 interface CartProps {
@@ -15,6 +18,9 @@ interface CartProps {
   removeFromCart: (id: string) => void;
   totalPrice: number;
   handleCheckout: () => void;
+  cashReceived: number;
+  setCashReceived: (val: number) => void;
+  changeDue: number;
 }
 
 export const Cart = ({
@@ -25,21 +31,41 @@ export const Cart = ({
   removeFromCart,
   totalPrice,
   handleCheckout,
+  cashReceived,
+  setCashReceived,
+  changeDue,
 }: CartProps) => {
+  const quickCashLabels = [20, 50, 100, 200, 500, 1000];
+
+  const handleCashInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setCashReceived(isNaN(val) ? 0 : val);
+  };
+
+  const handleQuickCash = (amount: number) => {
+    setCashReceived(amount);
+  };
+
+  const totalPriceText = `₱${formatPrice(totalPrice)}`;
+  const { height: totalHeight } = usePretext(totalPriceText, '800 28px Inter', 200);
+
   return (
     <>
-      <CartSidebar isOpen={isCartOpen}>
-        <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <POSSidebar isOpen={isCartOpen}>
+        <div style={{ padding: '1.25rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
           <CartHeader>
-            <CartTitle>Shopping Cart</CartTitle>
-            <CloseButton onClick={() => setIsCartOpen(false)}>&times;</CloseButton>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <FiShoppingCart size={20} />
+              <CartTitle>Current Bill</CartTitle>
+            </div>
+            <CloseButton onClick={() => setIsCartOpen(false)} aria-label="Close sidebar">&times;</CloseButton>
           </CartHeader>
 
           {cart.length === 0 ? (
             <EmptyCartWrapper>
               <FiShoppingCart size={48} />
               <p>Your cart is empty</p>
-              <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Click on items to add them to your cart</p>
+              <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Select items to start a sale</p>
             </EmptyCartWrapper>
           ) : (
             <>
@@ -55,7 +81,7 @@ export const Cart = ({
                       <QuantityButton onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, item.quantity - 1); }}>
                         <FiMinus size={14} />
                       </QuantityButton>
-                      <span>{item.quantity}</span>
+                      <span style={{ fontWeight: 700, minWidth: '20px', textAlign: 'center' }}>{item.quantity}</span>
                       <QuantityButton onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, item.quantity + 1); }} disabled={item.quantity >= item.stock}>
                         <FiPlus size={14} />
                       </QuantityButton>
@@ -68,21 +94,56 @@ export const Cart = ({
               </CartItemsWrapper>
 
               <CartFooter>
-                <TotalWrapper>
-                  <span>Total:</span>
-                  <span>₱{formatPrice(totalPrice)}</span>
+                <TotalWrapper style={{ height: totalHeight > 0 ? `${totalHeight}px` : 'auto' }}>
+                  <span>Total Amount</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>{totalPriceText}</span>
                 </TotalWrapper>
-                <CheckoutButton onClick={handleCheckout} disabled={cart.length === 0}>
-                  <FiDollarSign size={18} />
-                  Checkout
-                </CheckoutButton>
+
+                <CashSection>
+                  <CashLabel>
+                    <span>Cash Tendered</span>
+                    {cashReceived > 0 && <span onClick={() => setCashReceived(0)} style={{ color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}>Clear</span>}
+                  </CashLabel>
+                  <CashInputWrapper>
+                    <CurrencyPrefix>₱</CurrencyPrefix>
+                    <CashInput 
+                      type="number" 
+                      placeholder="0.00" 
+                      value={cashReceived || ''} 
+                      onChange={handleCashInput}
+                    />
+                  </CashInputWrapper>
+
+                  <QuickCashGrid>
+                    {quickCashLabels.map(amount => (
+                      <QuickCashButton key={amount} onClick={() => handleQuickCash(amount)}>
+                        +{amount}
+                      </QuickCashButton>
+                    ))}
+                  </QuickCashGrid>
+
+                  <ChangeDisplay hasChange={cashReceived >= totalPrice && totalPrice > 0}>
+                    <ChangeLabel>Change Due</ChangeLabel>
+                    <ChangeValue>₱{formatPrice(changeDue)}</ChangeValue>
+                  </ChangeDisplay>
+
+                  <CheckoutButton onClick={handleCheckout} disabled={cart.length === 0 || cashReceived < totalPrice}>
+                    {cashReceived < totalPrice && totalPrice > 0 ? 'Insufficient Cash' : (
+                      <>
+                        <FiDollarSign size={20} />
+                        Complete Transaction
+                        <FiArrowRight size={18} />
+                      </>
+                    )}
+                  </CheckoutButton>
+                </CashSection>
               </CartFooter>
             </>
           )}
         </div>
-      </CartSidebar>
+      </POSSidebar>
 
-      {/* Overlay when cart is open */}
+      {/* Overlay for mobile drawer */}
       {isCartOpen && (
         <div 
           onClick={() => setIsCartOpen(false)}
@@ -92,9 +153,9 @@ export const Cart = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 999,
-            transition: 'opacity 0.3s ease',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 99,
           }}
         />
       )}

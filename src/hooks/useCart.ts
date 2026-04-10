@@ -5,6 +5,7 @@ import type { InventoryItem } from '../types/inventory';
 
 export const useCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cashReceived, setCashReceived] = useState<number>(0);
 
   const addToCart = (product: InventoryItem, quantity: number) => {
     setCart(prevCart => {
@@ -54,6 +55,7 @@ export const useCart = () => {
 
   const clearCart = () => {
     setCart([]);
+    setCashReceived(0);
   };
 
   // Memoize expensive calculations
@@ -67,6 +69,11 @@ export const useCart = () => {
     [cart]
   );
 
+  const changeDue = useMemo(
+    () => Math.max(0, cashReceived - totalPrice),
+    [cashReceived, totalPrice]
+  );
+
   return {
     cart,
     addToCart,
@@ -75,5 +82,8 @@ export const useCart = () => {
     clearCart,
     totalPrice,
     totalItems,
+    cashReceived,
+    setCashReceived,
+    changeDue
   };
 };

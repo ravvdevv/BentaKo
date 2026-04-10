@@ -1,32 +1,60 @@
 import styled from 'styled-components';
 
-export const CartButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: ${({ theme }) => theme.colors.primary};
-  color: ${({ theme }) => theme.colors.white};
-  border: none;
-  border-radius: ${({ theme }) => theme.borderRadius};
-  cursor: pointer;
-  position: relative;
+export const CartesianGridContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.5rem;
+  
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    padding-bottom: 80px; /* Room for PayBar */
+  }
 `;
 
-export const CartBadge = styled.span`
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: ${({ theme }) => theme.colors.error};
-  color: ${({ theme }) => theme.colors.white};
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
+export const DashboardContainer = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: bold;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  background-color: #f8fafc;
+  
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+`;
+
+export const MainContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  
+  @media (max-width: 767px) {
+    padding: 1rem;
+  }
+`;
+
+export const POSSidebar = styled.div<{ isOpen: boolean }>`
+  width: 400px;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease-in-out;
+  z-index: 100;
+
+  @media (max-width: 1024px) {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    transform: ${({ isOpen }) => (isOpen ? 'translateX(0)' : 'translateX(100%)')};
+    z-index: 2000; /* Higher than PayBar and everything else */
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
 `;
 
 export const LoadingWrapper = styled.div`
@@ -251,17 +279,170 @@ export const TotalWrapper = styled.div`
 
 export const CheckoutButton = styled.button`
   width: 100%;
-  padding: 0.75rem;
+  padding: 1rem;
   background: ${({ theme, disabled }) => (disabled ? theme.colors.textLight : theme.colors.primary)};
   color: ${({ theme }) => theme.colors.white};
   border: none;
-  border-radius: ${({ theme }) => theme.borderRadius};
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
   cursor: ${({ disabled }) => (disabled ? 'not-allowed' : 'pointer')};
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+export const CashSection = styled.div`
+  background: #f1f5f9;
+  padding: 1.25rem;
+  border-radius: 16px;
+  margin-top: 1rem;
+`;
+
+export const CashLabel = styled.div`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+`;
+
+export const CashInputWrapper = styled.div`
+  position: relative;
+  margin-bottom: 1rem;
+`;
+
+export const CashInput = styled.input`
+  width: 100%;
+  padding: 1rem 1rem 1rem 2.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  color: ${({ theme }) => theme.colors.text};
+  box-sizing: border-box; /* Explicitly set to be safe */
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.primary}20;
+  }
+`;
+
+export const CurrencyPrefix = styled.span`
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #94a3b8;
+`;
+
+export const QuickCashGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+export const QuickCashButton = styled.button`
+  padding: 0.75rem 0.25rem; /* Reduced horizontal padding for narrow screens */
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem; /* Slightly smaller font */
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #f8fafc;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+  
+  &:active {
+    background: ${({ theme }) => theme.colors.primary}10;
+  }
+`;
+
+export const ChangeDisplay = styled.div<{ hasChange: boolean }>`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: ${({ hasChange }) => (hasChange ? '#ecfdf5' : 'white')};
+  border: 1px solid ${({ hasChange }) => (hasChange ? '#10b981' : '#e2e8f0')};
+  border-radius: 12px;
+  margin-bottom: 1rem;
+`;
+
+export const ChangeLabel = styled.span`
+  font-weight: 600;
+  color: #64748b;
+`;
+
+export const ChangeValue = styled.span`
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #059669;
+`;
+
+export const PayBar = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 1rem;
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1001;
+  border-top: 1px solid #e2e8f0;
+
+  @media (min-width: 1025px) {
+    display: none;
+  }
+`;
+
+export const PayBarTotal = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+export const PayBarLabel = styled.span`
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 700;
+`;
+
+export const PayBarAmount = styled.span`
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+export const PayBarButton = styled.button`
+  background: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 `;
 
